@@ -1,17 +1,924 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare Pages Project</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Ein: Airship Problems</title>
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#0b0f19" />
+  <style>
+    :root{
+      --bg0:#070913;
+      --bg1:#0b0f19;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --stroke: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.62);
+      --muted2: rgba(255,255,255,.45);
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --r: 22px;
+      --pad: 18px;
+      --accentA:#7c5cff;
+      --accentB:#34d3ff;
+      --accentC:#ff4fd8;
+      --good:#35ffb2;
+      --bad:#ff4b6b;
+      --warn:#ffd35a;
+
+      --easeOut: cubic-bezier(.16,1,.3,1);
+      --easeIn: cubic-bezier(.7,0,.84,0);
+      --tFast: 140ms;
+      --t: 220ms;
+    }
+
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg0:#f6f7ff;
+        --bg1:#eef1ff;
+        --card: rgba(0,0,0,.05);
+        --card2: rgba(0,0,0,.075);
+        --stroke: rgba(0,0,0,.08);
+        --text: rgba(0,0,0,.88);
+        --muted: rgba(0,0,0,.60);
+        --muted2: rgba(0,0,0,.48);
+        --shadow: 0 18px 60px rgba(10,14,25,.14);
+      }
+    }
+
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: radial-gradient(1200px 700px at 10% -10%, rgba(124,92,255,.28), transparent 55%),
+                  radial-gradient(1000px 700px at 100% 0%, rgba(52,211,255,.18), transparent 50%),
+                  linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    .bg{ position:fixed; inset:0; pointer-events:none; }
+    .bg__noise{
+      position:absolute; inset:-40px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+      opacity:.22;
+      mix-blend-mode: overlay;
+    }
+    .bg__glow{
+      position:absolute;
+      width:680px; height:680px;
+      filter: blur(40px);
+      opacity:.45;
+      border-radius:999px;
+    }
+    .bg__glow--a{
+      left:-260px; top:-240px;
+      background: radial-gradient(circle at 30% 30%, rgba(124,92,255,.9), transparent 55%);
+      animation: driftA 8s var(--easeOut) infinite alternate;
+    }
+    .bg__glow--b{
+      right:-240px; top:80px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,79,216,.7), transparent 55%);
+      animation: driftB 10s var(--easeOut) infinite alternate;
+    }
+    @keyframes driftA{ from{ transform: translate3d(0,0,0) } to{ transform: translate3d(60px,30px,0) } }
+    @keyframes driftB{ from{ transform: translate3d(0,0,0) } to{ transform: translate3d(-70px,40px,0) } }
+
+    .topbar{
+      position:sticky; top:0; z-index:10;
+      padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
+      backdrop-filter: blur(14px);
+      background: linear-gradient(180deg, rgba(10,12,24,.68), rgba(10,12,24,.35));
+      border-bottom: 1px solid var(--stroke);
+    }
+    .topbar__inner{
+      max-width: 980px;
+      margin: 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+    .brand__mark{
+      width:38px; height:38px;
+      display:grid; place-items:center;
+      border-radius:14px;
+      background: linear-gradient(135deg, rgba(124,92,255,.8), rgba(52,211,255,.55));
+      color:white;
+      font-weight:900;
+      box-shadow: 0 16px 45px rgba(124,92,255,.18);
+      user-select:none;
+    }
+    .brand__txt{ min-width:0 }
+    .brand__title{ font-weight:800; letter-spacing:.2px; line-height:1.1; }
+    .brand__sub{ color:var(--muted2); font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .hud{ display:flex; align-items:center; gap:10px; }
+    .hud__item{
+      padding:10px 12px;
+      border-radius:16px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      user-select:none;
+    }
+    .hud__k{ font-size:11px; color:var(--muted2); }
+    .hud__v{ font-size:14px; font-weight:800; }
+
+    .shell{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 14px 12px 28px;
+    }
+
+    .card{
+      position:relative;
+      border-radius: var(--r);
+      background: linear-gradient(180deg, var(--card), rgba(255,255,255,.03));
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    @media (min-width: 720px){
+      .card{ padding: 20px; }
+    }
+
+    .card__meta{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 14px;
+      flex-wrap:wrap;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      padding:8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      user-select:none;
+    }
+    .chip--soft{
+      border-color: transparent;
+      background: rgba(124,92,255,.14);
+      color: rgba(255,255,255,.88);
+    }
+    .chip--warn{
+      background: rgba(255,211,90,.12);
+      color: rgba(255,255,255,.88);
+    }
+
+    .scene{ position:relative; min-height: 190px; }
+    .scene__summary{
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: .2px;
+      margin-bottom: 10px;
+    }
+    .scene__text{
+      font-size: 16px;
+      line-height: 1.55;
+      letter-spacing: .1px;
+      white-space: pre-wrap;
+    }
+    @media (min-width: 720px){
+      .scene__text{ font-size: 18px; }
+    }
+
+    .scene__loading{
+      position:absolute; inset: 0;
+      padding-top: 6px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+    .skeleton{
+      border-radius: 12px;
+      height: 16px;
+      background: linear-gradient(90deg, rgba(255,255,255,.05), rgba(255,255,255,.11), rgba(255,255,255,.05));
+      background-size: 200% 100%;
+      animation: shimmer 1.1s linear infinite;
+    }
+    .s1{ width: 66%; }
+    .s2{ width: 94%; }
+    .s3{ width: 80%; height: 48px; }
+    @keyframes shimmer{ from{ background-position: 0% 0 } to{ background-position: 200% 0 } }
+
+    .signal{ display:flex; gap:6px; align-items:center; margin-top:6px; }
+    .signal .dot{
+      width:8px; height:8px; border-radius:999px;
+      background: rgba(52,211,255,.8);
+      animation: bop 900ms var(--easeOut) infinite;
+    }
+    .signal .dot:nth-child(2){ animation-delay: 120ms; background: rgba(124,92,255,.85); }
+    .signal .dot:nth-child(3){ animation-delay: 240ms; background: rgba(255,79,216,.78); }
+    @keyframes bop{ 0%,100%{ transform: translateY(0); opacity:.55 } 50%{ transform: translateY(-5px); opacity:1 } }
+
+    .scene__loadingLabel{ color:var(--muted2); font-size: 12px; }
+
+    .choices{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .choice{
+      position:relative;
+      width:100%;
+      border-radius: 18px;
+      padding: 14px 14px;
+      text-align:left;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      color: var(--text);
+      cursor:pointer;
+      transition: transform var(--tFast) var(--easeOut), border-color var(--tFast) var(--easeOut), background var(--tFast) var(--easeOut);
+      overflow:hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .choice::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(500px 200px at 10% 0%, rgba(52,211,255,.18), transparent 55%),
+                  radial-gradient(500px 200px at 90% 0%, rgba(255,79,216,.14), transparent 55%);
+      opacity:0;
+      transition: opacity var(--tFast) var(--easeOut);
+    }
+    .choice:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
+    .choice:hover::before{ opacity:1; }
+    .choice:active{ transform: translateY(0px) scale(.995); }
+    .choice[disabled]{ cursor:not-allowed; opacity:.65; }
+
+    .choice__key{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:26px; height:26px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.14);
+      color: var(--muted);
+      font-weight:900;
+      font-size: 12px;
+      margin-right: 10px;
+      user-select:none;
+    }
+    .choice__label{
+      position:relative;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .choice__hint{
+      position:relative;
+      margin-top: 6px;
+      color: var(--muted2);
+      font-size: 12px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      margin-top: 14px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      border-radius: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-weight: 900;
+      cursor:pointer;
+      transition: transform var(--tFast) var(--easeOut), background var(--tFast) var(--easeOut), border-color var(--tFast) var(--easeOut);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.2); }
+    .btn:active{ transform: translateY(0px) scale(.995); }
+    .btn--secondary{
+      background: linear-gradient(135deg, rgba(124,92,255,.55), rgba(52,211,255,.25));
+      border-color: rgba(124,92,255,.35);
+    }
+    .btn--ghost{
+      background: rgba(255,255,255,.03);
+    }
+
+    .iconbtn{
+      border-radius: 14px;
+      width: 40px;
+      height: 40px;
+      display:grid;
+      place-items:center;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      cursor:pointer;
+      transition: transform var(--tFast) var(--easeOut);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .iconbtn:hover{ transform: translateY(-1px); }
+
+    .toast{
+      margin-top: 12px;
+      color: var(--muted);
+      min-height: 18px;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .footer{ margin-top: 14px; color: var(--muted2); font-size: 12px; }
+    .footer__inner{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      padding: 10px 4px;
+      flex-wrap:wrap;
+    }
+    .tiny{ opacity:.85; }
+
+    .modal{ border:none; padding:0; background: transparent; }
+    .modal::backdrop{ background: rgba(0,0,0,.55); backdrop-filter: blur(8px); }
+    .modal__panel{
+      width: min(520px, calc(100vw - 24px));
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(18,20,32,.95), rgba(18,20,32,.88));
+      color: var(--text);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .modal__head{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom: 10px; }
+    .modal__title{ font-weight: 900; }
+    .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      margin: 10px 0;
+    }
+    .modal__actions{ display:flex; justify-content:flex-end; margin-top: 10px; }
+
+    /* Scene transitions */
+    .fadeOut{ animation: fadeOut var(--t) var(--easeIn) both; }
+    .fadeIn{ animation: fadeIn var(--t) var(--easeOut) both; }
+    @keyframes fadeOut{ to{ opacity:0; transform: translateY(4px); filter: blur(2px);} }
+    @keyframes fadeIn{ from{ opacity:0; transform: translateY(-4px); filter: blur(2px);} to{ opacity:1; transform:none; filter:none;} }
+
+    .shake{ animation: shake 320ms linear; }
+    @keyframes shake{
+      0%{ transform: translateX(0) }
+      20%{ transform: translateX(-6px) }
+      40%{ transform: translateX(6px) }
+      60%{ transform: translateX(-4px) }
+      80%{ transform: translateX(4px) }
+      100%{ transform: translateX(0) }
+    }
+
+    .dangerwash{
+      position:absolute; inset:0;
+      border-radius: var(--r);
+      pointer-events:none;
+      background: radial-gradient(900px 380px at 30% -10%, rgba(255,75,107,.18), transparent 55%),
+                  radial-gradient(900px 380px at 80% 0%, rgba(255,75,107,.10), transparent 60%);
+      opacity:0;
+      transition: opacity var(--t) var(--easeOut);
+    }
+    .dangerwash.on{ opacity:1; }
+
+    @media (prefers-reduced-motion: reduce){
+      *{ animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+      .bg__glow{ display:none; }
+    }
+  </style>
 </head>
 <body>
-    <div id="app">
-        <h1>Welcome to Ein Airship</h1>
-        <p>Your adventure awaits!</p>
-        <!-- Add dynamic content here -->
+  <div class="bg" aria-hidden="true">
+    <div class="bg__noise"></div>
+    <div class="bg__glow bg__glow--a"></div>
+    <div class="bg__glow bg__glow--b"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="brand">
+        <div class="brand__mark" aria-hidden="true">E</div>
+        <div class="brand__txt">
+          <div class="brand__title">Ein: Airship Problems</div>
+          <div class="brand__sub">Comedic sci-fi anime-ish chaos</div>
+        </div>
+      </div>
+
+      <div class="hud">
+        <div class="hud__item">
+          <div class="hud__k">Run</div>
+          <div class="hud__v" id="hudRun">0</div>
+        </div>
+        <div class="hud__item">
+          <div class="hud__k">Bank</div>
+          <div class="hud__v" id="hudBank">0</div>
+        </div>
+        <button class="iconbtn" id="btnSettings" aria-label="Settings" title="Settings">
+          <span aria-hidden="true">⚙</span>
+        </button>
+      </div>
     </div>
-    <script src="app.js"></script>
+  </header>
+
+  <main class="shell">
+    <section class="card" id="card" aria-live="polite" aria-busy="false">
+      <div class="dangerwash" id="dangerwash" aria-hidden="true"></div>
+
+      <div class="card__meta">
+        <div class="chip" id="chipTurn">Turn 0</div>
+        <div class="chip chip--soft" id="chipTag">airship</div>
+        <div class="chip chip--warn" id="chipMode">Direct Groq (B)</div>
+      </div>
+
+      <div class="scene">
+        <div class="scene__summary" id="sceneSummary"></div>
+        <div class="scene__text" id="sceneText"></div>
+
+        <div class="scene__loading" id="sceneLoading" hidden>
+          <div class="skeleton s1"></div>
+          <div class="skeleton s2"></div>
+          <div class="skeleton s3"></div>
+          <div class="signal">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <div class="scene__loadingLabel">Dialing GroqCloud…</div>
+        </div>
+      </div>
+
+      <div class="choices" id="choices"></div>
+
+      <div class="actions">
+        <button class="btn btn--ghost" id="btnRestart">Restart</button>
+        <button class="btn btn--secondary" id="btnCashout">Extract (Cash out)</button>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer__inner">
+        <div>Single-file mode (unsafe key). If it CORS-fails, we’ll switch to Pages Functions.</div>
+        <div class="footer__right">
+          <span class="tiny">Keys: 1/2/3 choose • R restart • D debug</span>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <dialog class="modal" id="settingsModal">
+    <form method="dialog" class="modal__panel">
+      <div class="modal__head">
+        <div class="modal__title">Settings</div>
+        <button class="iconbtn" value="cancel" aria-label="Close">✕</button>
+      </div>
+
+      <label class="row">
+        <span>Reduced motion</span>
+        <input type="checkbox" id="toggleReducedMotion" />
+      </label>
+
+      <label class="row">
+        <span>Debug (show internals)</span>
+        <input type="checkbox" id="toggleDebug" />
+      </label>
+
+      <div class="modal__actions">
+        <button class="btn btn--secondary" value="ok">Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    /***********************
+     * CONFIG (MODE B)
+     ***********************/
+    // Unsafe by design: any visitor can steal this key from DevTools.
+    // If you are okay with that, paste it here:
+    const GROQ_API_KEY = "PASTE_GROQ_API_KEY_HERE";
+
+    // "Good default"
+    const GROQ_MODEL = "llama-3.1-70b-versatile";
+    const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+    /***********************
+     * UTIL
+     ***********************/
+    const $ = (sel) => document.querySelector(sel);
+
+    const els = {
+      card: $("#card"),
+      dangerwash: $("#dangerwash"),
+      hudRun: $("#hudRun"),
+      hudBank: $("#hudBank"),
+      chipTurn: $("#chipTurn"),
+      chipTag: $("#chipTag"),
+      sceneSummary: $("#sceneSummary"),
+      sceneText: $("#sceneText"),
+      sceneLoading: $("#sceneLoading"),
+      choices: $("#choices"),
+      toast: $("#toast"),
+      btnRestart: $("#btnRestart"),
+      btnCashout: $("#btnCashout"),
+      btnSettings: $("#btnSettings"),
+      settingsModal: $("#settingsModal"),
+      toggleReducedMotion: $("#toggleReducedMotion"),
+      toggleDebug: $("#toggleDebug"),
+    };
+
+    const storageKey = "ein_airship_onefile_v1";
+
+    const defaultState = () => ({
+      bank: 0,
+      run: 0,
+      turn: 0,
+      continuity_anchor: "Ein is on an airship corridor holding a suspiciously warm vending-machine ramen.",
+      last_outcome: "start",
+      inventory: ["suspicious ramen (warm)"],
+      tag: "airship",
+      reducedMotionOverride: null,
+      debug: false,
+    });
+
+    let state = loadState();
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return defaultState();
+        const parsed = JSON.parse(raw);
+        return { ...defaultState(), ...parsed };
+      } catch {
+        return defaultState();
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    }
+
+    function clamp(n, a, b) {
+      return Math.max(a, Math.min(b, n));
+    }
+
+    function prefersReducedMotion() {
+      const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+      const sys = !!mq?.matches;
+      if (state.reducedMotionOverride === null) return sys;
+      return !!state.reducedMotionOverride;
+    }
+
+    function setBusy(busy) {
+      els.card?.setAttribute("aria-busy", busy ? "true" : "false");
+      els.sceneLoading.hidden = !busy;
+    }
+
+    function toast(msg) {
+      els.toast.textContent = msg || "";
+    }
+
+    function animateSwap(node, nextText) {
+      if (prefersReducedMotion()) {
+        node.textContent = nextText;
+        return;
+      }
+      node.classList.remove("fadeIn", "fadeOut");
+      node.classList.add("fadeOut");
+      const onEnd = () => {
+        node.textContent = nextText;
+        node.classList.remove("fadeOut");
+        node.classList.add("fadeIn");
+      };
+      node.addEventListener("animationend", onEnd, { once: true });
+    }
+
+    function renderHUD() {
+      els.hudRun.textContent = String(state.run);
+      els.hudBank.textContent = String(state.bank);
+      els.chipTurn.textContent = `Turn ${state.turn}`;
+      els.chipTag.textContent = state.tag || "airship";
+      els.toggleReducedMotion.checked = !!state.reducedMotionOverride;
+      els.toggleDebug.checked = !!state.debug;
+    }
+
+    function setChoices(disabled, items = []) {
+      els.choices.innerHTML = "";
+      items.forEach((c, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "choice";
+        btn.type = "button";
+        btn.disabled = !!disabled;
+
+        const key = document.createElement("span");
+        key.className = "choice__key";
+        key.textContent = String(idx + 1);
+
+        const label = document.createElement("div");
+        label.className = "choice__label";
+        label.textContent = c.label;
+
+        const hint = document.createElement("div");
+        hint.className = "choice__hint";
+        hint.textContent = state.debug ? `intent: ${c.intent} | id: ${c.id} | risk: ${c.risk}` : " ";
+
+        btn.append(key, label, hint);
+
+        btn.addEventListener("click", () => choose(c));
+        els.choices.append(btn);
+      });
+    }
+
+    function rngRoll(risk) {
+      // risk 0..1 => higher risk means lower success rate
+      const successRate = clamp(1 - risk, 0.05, 0.95);
+      return Math.random() < successRate;
+    }
+
+    function dangerFlash(on) {
+      if (!els.dangerwash) return;
+      els.dangerwash.classList.toggle("on", !!on);
+    }
+
+    /***********************
+     * GROQ (DIRECT)
+     ***********************/
+    function buildSystemPrompt() {
+      return [
+        "You are the narrative engine for a comedic sci-fi anime-ish choice game starring Ein.",
+        "You MUST output ONLY valid JSON (no markdown, no extra text).",
+        "The story must maintain strict continuity from the provided continuity_anchor and last_outcome.",
+        "The player does NOT see odds. However you must internally tag each choice with a risk from 0.0 to 1.0.",
+        "The game is harsh: if outcome is FAIL, the run ends immediately.",
+        "Keep scenes punchy, vivid, funny. Avoid long paragraphs.",
+        "Always provide exactly 3 choices."
+      ].join(" ");
+    }
+
+    function schemaHint() {
+      return {
+        scene_summary: "1-2 short sentences of what just happened / where Ein is now",
+        scene_text: "2-5 short sentences in comedic sci-fi anime-ish tone",
+        continuity_anchor: "single sentence describing the exact current situation to maintain continuity next turn",
+        choices: [
+          { id: "a", label: "Visible button text", intent: "short action intent", risk: 0.5 },
+          { id: "b", label: "Visible button text", intent: "short action intent", risk: 0.5 },
+          { id: "c", label: "Visible button text", intent: "short action intent", risk: 0.5 }
+        ],
+        tags: ["airship", "alien", "comedy"]
+      };
+    }
+
+    async function groqNextScene(choice = null) {
+      if (!GROQ_API_KEY || GROQ_API_KEY.includes("PASTE_")) {
+        throw new Error("Missing GROQ_API_KEY. Paste it into index.html.");
+      }
+
+      const payload = {
+        instruction: "Generate the next scene JSON following the schema.",
+        schema: schemaHint(),
+        input: {
+          turn: state.turn,
+          continuity_anchor: state.continuity_anchor,
+          last_outcome: state.last_outcome,
+          last_choice: choice,
+          inventory: state.inventory,
+          tone: "comedic sci-fi anime-ish"
+        }
+      };
+
+      const res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "authorization": `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          temperature: 0.95,
+          top_p: 0.9,
+          messages: [
+            { role: "system", content: buildSystemPrompt() },
+            { role: "user", content: JSON.stringify(payload) }
+          ]
+        })
+      });
+
+      // If CORS blocks, you often won't get here with a readable response.
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`Groq API ${res.status}: ${t.slice(0, 500)}`);
+      }
+
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (typeof content !== "string") throw new Error("Bad Groq response shape.");
+
+      try {
+        return JSON.parse(content);
+      } catch {
+        throw new Error("Groq did not return valid JSON. Enable Debug (D) and check console.");
+      }
+    }
+
+    /***********************
+     * GAME FLOW
+     ***********************/
+    function sanitizeScene(scene) {
+      const summary = String(scene?.scene_summary || "");
+      const text = String(scene?.scene_text || "");
+      const tag = Array.isArray(scene?.tags) && scene.tags[0] ? String(scene.tags[0]) : "airship";
+      const anchor = String(scene?.continuity_anchor || state.continuity_anchor);
+
+      const choices = Array.isArray(scene?.choices) ? scene.choices.slice(0, 3) : [];
+      const cleaned = choices.map((c, i) => ({
+        id: String(c?.id || ["a","b","c"][i]),
+        label: String(c?.label || "Do something extremely questionable"),
+        intent: String(c?.intent || "unknown"),
+        risk: typeof c?.risk === "number" ? clamp(c.risk, 0, 1) : 0.5,
+      }));
+
+      return { summary, text, tag, anchor, cleaned };
+    }
+
+    function applyScene(scene) {
+      const { summary, text, tag, anchor, cleaned } = sanitizeScene(scene);
+
+      animateSwap(els.sceneSummary, summary);
+      animateSwap(els.sceneText, text);
+
+      state.tag = tag;
+      state.continuity_anchor = anchor;
+      saveState();
+      renderHUD();
+
+      setChoices(false, cleaned);
+    }
+
+    async function start() {
+      renderHUD();
+
+      setChoices(true, [
+        { id: "a", label: "Loading…", intent: "loading", risk: 0.5 },
+        { id: "b", label: "Loading…", intent: "loading", risk: 0.5 },
+        { id: "c", label: "Loading…", intent: "loading", risk: 0.5 },
+      ]);
+
+      setBusy(true);
+      toast("");
+      dangerFlash(false);
+
+      try {
+        const scene = await groqNextScene(null);
+        applyScene(scene);
+        toast("Tip: press D for Debug. If it CORS-fails, we switch to Functions.");
+      } catch (e) {
+        // Common: CORS failure will show as TypeError: Failed to fetch
+        toast(`Could not load from Groq. ${e?.message || e}`);
+        setChoices(true, []);
+        console.error(e);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function choose(c) {
+      // lock UI
+      [...els.choices.querySelectorAll("button")].forEach((b) => (b.disabled = true));
+
+      // resolve outcome locally (hidden odds)
+      const ok = rngRoll(c.risk);
+      state.last_outcome = ok ? "success" : "fail";
+
+      if (!ok) {
+        // harsh fail: run ends immediately
+        state.run = 0;
+        state.turn = 0;
+        state.inventory = ["suspicious ramen (warm)"];
+        saveState();
+        renderHUD();
+
+        if (!prefersReducedMotion()) {
+          els.card?.classList.add("shake");
+          dangerFlash(true);
+          setTimeout(() => {
+            els.card?.classList.remove("shake");
+            dangerFlash(false);
+          }, 420);
+        }
+
+        toast("Ein got absolutely cooked. Run ended. (Press Restart)");
+        return;
+      }
+
+      // success
+      state.run += 1;
+      state.turn += 1;
+      saveState();
+      renderHUD();
+
+      setBusy(true);
+      toast("");
+      try {
+        const scene = await groqNextScene({ id: c.id, label: c.label, intent: c.intent });
+        applyScene(scene);
+      } catch (e) {
+        toast(`Scene fetch failed. ${e?.message || e}`);
+        setChoices(true, []);
+        console.error(e);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function cashOut() {
+      if (state.run <= 0) {
+        toast("No loot to extract. Do something reckless first.");
+        return;
+      }
+      state.bank += state.run;
+      state.run = 0;
+      state.turn = 0;
+      state.last_outcome = "cashout";
+      state.inventory = ["suspicious ramen (warm)"];
+      state.continuity_anchor = "Ein successfully extracted from the airship… only to realize they left their shoes behind.";
+      saveState();
+      renderHUD();
+
+      toast("Extracted! Bank increased. Starting a new run…");
+      start();
+    }
+
+    function restart() {
+      state.run = 0;
+      state.turn = 0;
+      state.last_outcome = "restart";
+      state.inventory = ["suspicious ramen (warm)"];
+      state.continuity_anchor = "Ein is on an airship corridor holding a suspiciously warm vending-machine ramen.";
+      saveState();
+      renderHUD();
+      toast("Restarted.");
+      start();
+    }
+
+    els.btnCashout.addEventListener("click", cashOut);
+    els.btnRestart.addEventListener("click", restart);
+
+    els.btnSettings.addEventListener("click", () => {
+      if (typeof els.settingsModal.showModal === "function") els.settingsModal.showModal();
+      else els.settingsModal.setAttribute("open", "open");
+    });
+
+    els.toggleReducedMotion.addEventListener("change", (e) => {
+      state.reducedMotionOverride = e.target.checked;
+      saveState();
+      toast(state.reducedMotionOverride ? "Reduced motion enabled." : "Reduced motion follows system setting.");
+    });
+
+    els.toggleDebug.addEventListener("change", (e) => {
+      state.debug = e.target.checked;
+      saveState();
+      toast(state.debug ? "Debug enabled." : "Debug disabled.");
+      // rerender (hints are built per render; simplest is restart current scene render)
+      const curChoices = [...els.choices.querySelectorAll("button")];
+      curChoices.forEach((b) => {
+        const hint = b.querySelector(".choice__hint");
+        if (hint && !state.debug) hint.textContent = " ";
+      });
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "r" || e.key === "R") restart();
+      if (e.key === "d" || e.key === "D") {
+        state.debug = !state.debug;
+        els.toggleDebug.checked = state.debug;
+        saveState();
+        toast(state.debug ? "Debug enabled." : "Debug disabled.");
+      }
+      if (e.key === "1" || e.key === "2" || e.key === "3") {
+        const idx = Number(e.key) - 1;
+        const btn = els.choices.querySelectorAll("button")[idx];
+        if (btn && !btn.disabled) btn.click();
+      }
+    });
+
+    // boot
+    renderHUD();
+    animateSwap(els.sceneSummary, "Booting…");
+    animateSwap(els.sceneText, "Ein is warming up their anime protagonist aura. The airship is not prepared.");
+    start();
+  </script>
 </body>
 </html>
